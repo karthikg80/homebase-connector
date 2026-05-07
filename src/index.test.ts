@@ -150,3 +150,46 @@ describe("reportEvent connected error handling", () => {
     }
   });
 });
+
+describe("reportEvent connected timeout", () => {
+  it("aborts after timeoutMs and returns ok:false", async () => {
+    let abortReason: unknown;
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      const signal = init?.signal;
+      return new Promise<Response>((_, reject) => {
+        signal?.addEventListener("abort", () => {
+          abortReason = (signal as AbortSignal).reason;
+          reject(abortReason ?? new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    const connector = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch,
+      timeoutMs: 50
+    });
+
+    const start = Date.now();
+    const result = await connector.reportEvent({ kind: "x.y" });
+    const elapsed = Date.now() - start;
+    expect(result.ok).toBe(false);
+    expect(elapsed).toBeLessThan(500);
+    expect(abortReason).toBeDefined();
+  });
+
+  it("defaults timeoutMs to 2000 when not configured", async () => {
+    const c = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch: vi.fn(async () => new Response("{}", { status: 200 }))
+    });
+    const r = await c.reportEvent({ kind: "x.y" });
+    expect(r.ok).toBe(true);
+  });
+});

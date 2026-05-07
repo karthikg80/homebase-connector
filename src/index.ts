@@ -52,11 +52,14 @@ export function createConnector(config: ConnectorConfig): Connector {
   );
 
   const fetchImpl = config.fetch ?? globalThis.fetch;
+  const timeoutMs = config.timeoutMs ?? 2000;
 
   async function doRequest(path: string, body: unknown): Promise<ConnectorResult> {
     if (!fetchImpl) {
       return { ok: false, error: new Error("no fetch implementation available") };
     }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("timeout")), timeoutMs);
     try {
       const response = await fetchImpl(`${config.url}${path}`, {
         method: "POST",
@@ -64,7 +67,8 @@ export function createConnector(config: ConnectorConfig): Connector {
           "Content-Type": "application/json",
           Authorization: `Bearer ${config.token}`
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
       const text = await response.text();
       const parsed = text ? safeJson(text) : undefined;
@@ -74,6 +78,8 @@ export function createConnector(config: ConnectorConfig): Connector {
       return { ok: true, status: response.status, body: parsed };
     } catch (error) {
       return { ok: false, error };
+    } finally {
+      clearTimeout(timer);
     }
   }
 
