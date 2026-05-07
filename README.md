@@ -7,12 +7,24 @@ Optional-federation client library for [Homebase](https://github.com/karthikg80/
 ```json
 {
   "dependencies": {
-    "@homebase/connector": "github:karthikg80/homebase-connector#v0.1.0"
+    "@homebase/connector": "git+https://github.com/karthikg80/homebase-connector.git#v0.1.0"
   }
 }
 ```
 
-Source-as-distribution: this package ships TypeScript source. Next.js, Vite, and most modern bundlers handle that fine. No build step.
+Source-as-distribution: this package ships TypeScript source. Next.js (webpack), Vite, and most modern bundlers handle that fine.
+
+### Next.js + Turbopack
+
+Turbopack treats `.ts` files inside `node_modules` as opaque unless explicitly transpiled. Add this to `next.config.ts`:
+
+```ts
+const nextConfig: NextConfig = {
+  transpilePackages: ["@homebase/connector"],
+};
+```
+
+Without this, the build fails with `Unknown module type ./node_modules/@homebase/connector/src/index.ts`.
 
 ## Usage
 
