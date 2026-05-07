@@ -193,3 +193,36 @@ describe("reportEvent connected timeout", () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe("reportEvent throwOnError", () => {
+  it("throws when option set and response is non-OK", async () => {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "bad" }), { status: 422 })
+    );
+    const c = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    await expect(
+      c.reportEvent({ kind: "x.y" }, { throwOnError: true })
+    ).rejects.toBeInstanceOf(Error);
+  });
+
+  it("does not throw when option is false (default)", async () => {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "bad" }), { status: 422 })
+    );
+    const c = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    const result = await c.reportEvent({ kind: "x.y" });
+    expect(result.ok).toBe(false);
+  });
+});

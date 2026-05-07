@@ -32,6 +32,12 @@ function normalizeOccursAt(value: ReportEventInput["occursAt"]): string | null {
   return parsed.toISOString();
 }
 
+function describeError(result: { status?: number; error: unknown }): string {
+  const status = result.status != null ? `status ${result.status}` : "no status";
+  const err = result.error instanceof Error ? result.error.message : JSON.stringify(result.error);
+  return `${status}: ${err}`;
+}
+
 function normalizeEvent(input: ReportEventInput) {
   return {
     kind: input.kind,
@@ -83,14 +89,22 @@ export function createConnector(config: ConnectorConfig): Connector {
     }
   }
 
-  async function reportEvent(input: ReportEventInput, _opts?: CallOptions): Promise<ConnectorResult> {
+  async function reportEvent(input: ReportEventInput, opts?: CallOptions): Promise<ConnectorResult> {
     if (!connected) return { ok: true, status: 0 };
-    return doRequest("/api/connector/events", normalizeEvent(input));
+    const result = await doRequest("/api/connector/events", normalizeEvent(input));
+    if (!result.ok && opts?.throwOnError) {
+      throw new Error(`[homebase-connector] reportEvent failed: ${describeError(result)}`);
+    }
+    return result;
   }
 
-  async function linkPerson(_input: LinkPersonInput, _opts?: CallOptions): Promise<ConnectorResult> {
+  async function linkPerson(input: LinkPersonInput, opts?: CallOptions): Promise<ConnectorResult> {
     if (!connected) return { ok: true, status: 0 };
-    return { ok: false, error: new Error("not implemented") };
+    const result = await doRequest("/api/connector/people/link", input);
+    if (!result.ok && opts?.throwOnError) {
+      throw new Error(`[homebase-connector] linkPerson failed: ${describeError(result)}`);
+    }
+    return result;
   }
 
   return {
