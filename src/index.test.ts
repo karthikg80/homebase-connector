@@ -226,3 +226,54 @@ describe("reportEvent throwOnError", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("linkPerson connected", () => {
+  it("POSTs to /api/connector/people/link with body", async () => {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true, familyPersonId: "fp-1", created: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    const c = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    const r = await c.linkPerson({
+      externalUserId: "user_42",
+      externalEmail: "Vivaan@Example.com",
+      displayLabel: "Vivaan"
+    });
+    expect(r.ok).toBe(true);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe("https://h/api/connector/people/link");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer t");
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject({
+      externalUserId: "user_42",
+      externalEmail: "Vivaan@Example.com",
+      displayLabel: "Vivaan"
+    });
+  });
+
+  it("returns ok:false on 409 ambiguous match without throwing by default", async () => {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "ambiguous_identity_match", candidates: [] }), {
+        status: 409
+      })
+    );
+    const c = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    const r = await c.linkPerson({ externalEmail: "x@x" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.status).toBe(409);
+  });
+});
