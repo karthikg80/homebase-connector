@@ -19,3 +19,23 @@ describe("createConnector", () => {
     expect(c.connected).toBe(true);
   });
 });
+
+describe("reportEvent disconnected", () => {
+  it("returns { ok: true, status: 0 } and does not call fetch", async () => {
+    const fetch = vi.fn();
+    const c = createConnector({ fetch });
+    const r = await c.reportEvent({ kind: "test.kind" });
+    expect(r).toEqual({ ok: true, status: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("linkPerson disconnected", () => {
+  it("returns { ok: true, status: 0 } and does not call fetch", async () => {
+    const fetch = vi.fn();
+    const c = createConnector({ fetch });
+    const r = await c.linkPerson({ externalEmail: "x@x" });
+    expect(r).toEqual({ ok: true, status: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
