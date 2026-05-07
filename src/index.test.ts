@@ -108,3 +108,45 @@ describe("reportEvent connected", () => {
     expect(body.circleId).toBeUndefined();
   });
 });
+
+describe("reportEvent connected error handling", () => {
+  it("returns { ok: false, status, error } on 4xx without throwing", async () => {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "ambiguous_identity_match" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    const connector = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    const result = await connector.reportEvent({ kind: "x.y" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(409);
+      expect(result.error).toEqual({ error: "ambiguous_identity_match" });
+    }
+  });
+
+  it("returns { ok: false, error } on network failure without throwing", async () => {
+    const fetch = vi.fn(async () => {
+      throw new TypeError("network down");
+    });
+    const connector = createConnector({
+      url: "https://h",
+      appKey: "k",
+      circleId: "c",
+      token: "t",
+      fetch
+    });
+    const result = await connector.reportEvent({ kind: "x.y" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(TypeError);
+    }
+  });
+});
