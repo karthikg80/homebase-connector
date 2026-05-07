@@ -39,3 +39,72 @@ describe("linkPerson disconnected", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("reportEvent connected", () => {
+  function setup() {
+    const fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true, eventId: "evt-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    const connector = createConnector({
+      url: "https://h.example",
+      appKey: "chorewheel",
+      circleId: "circle-1",
+      token: "tok-secret",
+      fetch
+    });
+    return { connector, fetch };
+  }
+
+  it("POSTs to /api/connector/events with bearer token and body", async () => {
+    const { connector, fetch } = setup();
+    const result = await connector.reportEvent({
+      kind: "chore.due",
+      occursAt: "2026-05-08T13:00:00Z",
+      subjectExternalId: "user_42",
+      title: "Take out trash",
+      sourceAppEventId: "chore_8821",
+      sourceUrl: "/chores/8821",
+      payload: { weekly: true }
+    });
+
+    expect(result.ok).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe("https://h.example/api/connector/events");
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer tok-secret");
+    expect((init?.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject({
+      kind: "chore.due",
+      occursAt: "2026-05-08T13:00:00.000Z",
+      subjectExternalId: "user_42",
+      title: "Take out trash",
+      sourceAppEventId: "chore_8821",
+      sourceUrl: "/chores/8821",
+      payload: { weekly: true }
+    });
+  });
+
+  it("normalizes Date occursAt to ISO 8601", async () => {
+    const { connector, fetch } = setup();
+    await connector.reportEvent({
+      kind: "x.y",
+      occursAt: new Date("2026-05-08T13:00:00Z")
+    });
+    const init = fetch.mock.calls[0]![1];
+    const body = JSON.parse(init?.body as string);
+    expect(body.occursAt).toBe("2026-05-08T13:00:00.000Z");
+  });
+
+  it("strips appKey/circleId from the body (server uses credential)", async () => {
+    const { connector, fetch } = setup();
+    await connector.reportEvent({ kind: "x.y" });
+    const body = JSON.parse(fetch.mock.calls[0]![1]?.body as string);
+    expect(body.appKey).toBeUndefined();
+    expect(body.circleId).toBeUndefined();
+  });
+});
