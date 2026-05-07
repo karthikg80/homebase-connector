@@ -1,0 +1,4 @@
+.git
+.github
+*.test.ts
+vitest.config.ts
