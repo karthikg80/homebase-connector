@@ -3,17 +3,36 @@ import type {
   Connector,
   ConnectorConfig,
   ConnectorResult,
+  LaunchNavContext,
+  LaunchPayload,
   LinkPersonInput,
-  ReportEventInput
+  RegisterResourceInput,
+  ReportEventInput,
+  ResourceRole
 } from "./types";
+import {
+  firstCircleId as firstCircleIdImpl,
+  hasLaunchAccess as hasLaunchAccessImpl,
+  hasResourceAccess as hasResourceAccessImpl,
+  navFromToken as navFromTokenImpl,
+  verifyToken as verifyTokenImpl
+} from "./launch";
+import {
+  hasAppEntitlement as hasAppEntitlementImpl,
+  registerResource as registerResourceImpl
+} from "./resource";
 
 export type {
   CallOptions,
   Connector,
   ConnectorConfig,
   ConnectorResult,
+  LaunchNavContext,
+  LaunchPayload,
   LinkPersonInput,
-  ReportEventInput
+  RegisterResourceInput,
+  ReportEventInput,
+  ResourceRole
 } from "./types";
 
 function safeJson(text: string): unknown {
@@ -107,9 +126,48 @@ export function createConnector(config: ConnectorConfig): Connector {
     return result;
   }
 
+  function verifyLaunchToken(token: string | undefined): LaunchPayload | null {
+    return verifyTokenImpl(token, config);
+  }
+
+  function hasLaunchAccess(token: string | undefined): boolean {
+    return hasLaunchAccessImpl(token, config);
+  }
+
+  function hasResourceAccess(
+    token: string | undefined,
+    slug: string,
+    role: ResourceRole
+  ): boolean {
+    return hasResourceAccessImpl(token, slug, role, config);
+  }
+
+  function firstCircleId(launch: LaunchPayload | null): string {
+    return firstCircleIdImpl(launch);
+  }
+
+  function navFromToken(token: string | undefined): LaunchNavContext | null {
+    return navFromTokenImpl(token, config);
+  }
+
+  async function hasAppEntitlement(launch: LaunchPayload | null): Promise<boolean> {
+    return hasAppEntitlementImpl(launch, { ...config, fetch: fetchImpl, timeoutMs });
+  }
+
+  async function registerResource(input: RegisterResourceInput): Promise<ConnectorResult> {
+    return registerResourceImpl(input, { ...config, fetch: fetchImpl, timeoutMs });
+  }
+
   return {
     get connected() { return connected; },
     reportEvent,
-    linkPerson
+    linkPerson,
+    verifyLaunchToken,
+    hasLaunchAccess,
+    hasResourceAccess,
+    firstCircleId,
+    navFromToken,
+    hasAppEntitlement,
+    registerResource
   };
 }
