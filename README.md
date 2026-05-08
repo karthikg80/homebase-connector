@@ -7,7 +7,7 @@ Optional-federation client library for [Homebase](https://github.com/karthikg80/
 ```json
 {
   "dependencies": {
-    "@homebase/connector": "git+https://github.com/karthikg80/homebase-connector.git#v0.1.0"
+    "@homebase/connector": "git+https://github.com/karthikg80/homebase-connector.git#v0.2.0"
   }
 }
 ```
@@ -35,25 +35,44 @@ export const homebase = createConnector({
   url: process.env.HOMEBASE_URL,
   appKey: process.env.HOMEBASE_APP_KEY,
   circleId: process.env.HOMEBASE_CIRCLE_ID,
-  token: process.env.HOMEBASE_SERVICE_TOKEN
+  token: process.env.HOMEBASE_SERVICE_TOKEN,
+  jwtSecret: process.env.HOMEBASE_APP_JWT_SECRET,         // optional: launch-token verify
+  serviceSecret: process.env.HOMEBASE_APP_SERVICE_SECRET, // optional: resource + entitlement
+  resourceType: "tracker",                                // app-specific: tracker / household / board
+  accessRequired: process.env.HOMEBASE_ACCESS_REQUIRED === "true"
 });
 
-// Disconnected: no-op, returns { ok: true, status: 0 }
-// Connected: POSTs to ${url}/api/connector/events
+// Event reporting (v0.1)
 const r = await homebase.reportEvent({
   kind: "chore.due",
-  occursAt: new Date(),                  // Date | string | null
-  subjectExternalId: "user_42",          // app's internal user/subject id
+  occursAt: new Date(),
+  subjectExternalId: "user_42",
   title: "Take out trash",
-  sourceAppEventId: "chore_8821",        // idempotency key
-  sourceUrl: "/chores/8821"              // absolute or app-relative
+  sourceAppEventId: "chore_8821",
+  sourceUrl: "/chores/8821"
 });
 
-// Map app-local identity to a family_person
 await homebase.linkPerson({
   externalUserId: "user_42",
   externalEmail: "vivaan@example.com",
   displayLabel: "Vivaan"
+});
+
+// Launch-token verification (v0.2)
+const launch = homebase.verifyLaunchToken(token);
+const ok = homebase.hasLaunchAccess(token);
+const canEdit = homebase.hasResourceAccess(token, "med-x", "admin");
+const nav = homebase.navFromToken(token);
+const circleId = homebase.firstCircleId(launch);
+
+// Async (v0.2)
+const entitled = await homebase.hasAppEntitlement(launch);
+await homebase.registerResource({
+  circleId,
+  createdBy: "user-1",
+  label: "Med X",
+  slug: "med-x",
+  url: "/m/med-x"
 });
 ```
 
@@ -65,8 +84,11 @@ await homebase.linkPerson({
 | `HOMEBASE_APP_KEY` | matches `core.app_catalog.app_key` for this deployment |
 | `HOMEBASE_CIRCLE_ID` | the Homebase circle this app instance is connected to |
 | `HOMEBASE_SERVICE_TOKEN` | bearer token from `app_connector_credentials` |
+| `HOMEBASE_APP_JWT_SECRET` | (v0.2) HMAC-SHA256 secret used to verify launch tokens |
+| `HOMEBASE_APP_SERVICE_SECRET` | (v0.2) bearer secret for `/api/app-resources` and `/api/app-access/check` |
+| `HOMEBASE_ACCESS_REQUIRED` | (v0.2) `"true"` to require entitlement before allowing app actions |
 
-If any are missing, `connector.connected` is false and all calls are no-ops. Apps should ship without these set in their default config so the standalone share-by-link flow keeps working.
+If `url`/`appKey`/`circleId`/`token` are missing, `connector.connected` is false and event/link calls are no-ops. The launch-token / resource methods independently degrade: missing `jwtSecret` -> `verifyLaunchToken` returns null; missing `serviceSecret` -> `registerResource` no-ops and `hasAppEntitlement` returns false (when access is required). Apps should ship without these set in their default config so the standalone share-by-link flow keeps working.
 
 ## Behavior
 
