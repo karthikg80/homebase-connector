@@ -22,6 +22,8 @@ import {
   registerResource as registerResourceImpl
 } from "./resource";
 
+export { requireEnv, assertEnv } from "./env";
+
 export type {
   CallOptions,
   Connector,

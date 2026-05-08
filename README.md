@@ -90,6 +90,25 @@ await homebase.registerResource({
 
 If `url`/`appKey`/`circleId`/`token` are missing, `connector.connected` is false and event/link calls are no-ops. The launch-token / resource methods independently degrade: missing `jwtSecret` -> `verifyLaunchToken` returns null; missing `serviceSecret` -> `registerResource` no-ops and `hasAppEntitlement` returns false (when access is required). Apps should ship without these set in their default config so the standalone share-by-link flow keeps working.
 
+## Fail-fast env helpers (v0.2.1)
+
+To turn silent env-var fallbacks into deploy-time failures:
+
+```ts
+import { requireEnv, assertEnv } from "@homebase/connector";
+
+export const SITE_URL = requireEnv("NEXT_PUBLIC_SITE_URL");
+
+assertEnv(
+  "HOMEBASE_URL",
+  "HOMEBASE_APP_KEY",
+  "HOMEBASE_CIRCLE_ID",
+  "HOMEBASE_SERVICE_TOKEN"
+);
+```
+
+Module-scope use means the missing-var error surfaces at build / first-request time rather than as a degraded UX bug in production.
+
 ## Behavior
 
 - **Best-effort async.** Errors are wrapped in `ConnectorResult`, not thrown. Callers can opt into strict mode via `{ throwOnError: true }`.

@@ -1,6 +1,6 @@
 {
   "name": "@homebase/connector",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Optional-federation client library for Homebase apps. Apps remain standalone when env vars are absent; push family events to Homebase when configured.",
   "type": "module",
   "main": "./src/index.ts",
